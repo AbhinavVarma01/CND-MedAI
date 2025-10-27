@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button } from '../components/ui/button';
-import { Activity, Menu, X, Brain, Zap, Shield, Users } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 const Navigation = () => {
@@ -28,8 +28,12 @@ const Navigation = () => {
             className="flex items-center gap-3 cursor-pointer group"
             onClick={() => navigate('/')}
           >
-            <div className="w-10 h-10 rounded-medical bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-medical group-hover:shadow-glow transition-all duration-300 group-hover:scale-105">
-              <Activity className="w-6 h-6 text-white" />
+            <div className="w-10 h-10 rounded-medical shadow-medical group-hover:shadow-glow transition-all duration-300 group-hover:scale-105 overflow-hidden">
+              <img
+                src="/Logo.png"
+                alt="MedAI Assist logo"
+                className="w-full h-full object-contain"
+              />
             </div>
             <div className="flex flex-col">
               <span className="text-xl font-bold bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent leading-tight font-display">

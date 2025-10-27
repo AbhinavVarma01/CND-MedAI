@@ -7,6 +7,7 @@ import { Camera, Mail, Building, MapPin } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "../hooks/use-toast";
+import LogoSpinner from "../components/LogoSpinner";
 
 const Profile = () => {
   const { toast } = useToast();
@@ -82,6 +83,14 @@ const Profile = () => {
       setSaving(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-[50vh] flex items-center justify-center">
+        <LogoSpinner label="Loading profile..." />
+      </div>
+    );
+  }
 
   return (
   <div className="space-y-8">

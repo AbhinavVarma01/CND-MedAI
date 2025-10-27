@@ -1,4 +1,4 @@
-import { Home, Upload, History, Info, User, LogOut, Brain } from "lucide-react";
+import { Home, Upload, History, User, LogOut } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { cn } from "../utils/cn";
 import { useToast } from "../hooks/use-toast";
@@ -75,8 +75,12 @@ const DashboardSidebar = () => {
       {/* Logo */}
       <div className="p-6 border-b border-sidebar-border">
         <div className="flex items-center gap-2">
-          <div className="h-10 w-10 rounded-lg bg-gradient-primary flex items-center justify-center">
-            <Brain className="h-6 w-6 text-primary-foreground" />
+          <div className="h-10 w-10 rounded-lg overflow-hidden shadow-soft">
+            <img
+              src="/Logo.png"
+              alt="MedAI Assist logo"
+              className="w-full h-full object-contain"
+            />
           </div>
           <div>
             <h1 className="font-bold text-lg text-sidebar-foreground">MedAI Assist</h1>

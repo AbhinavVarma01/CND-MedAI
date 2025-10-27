@@ -3,9 +3,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
-import { Eye, Download, Loader2, RefreshCw } from "lucide-react";
+import { Eye, Download, RefreshCw } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../hooks/use-toast";
+import LogoSpinner from "../components/LogoSpinner";
 
 const UploadHistory = () => {
   const [analyses, setAnalyses] = useState([]);
@@ -150,7 +151,7 @@ const UploadHistory = () => {
               disabled={refreshing}
             >
               {refreshing ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <LogoSpinner inline size={16} ringWidth={2} className="mx-auto" />
               ) : (
                 <RefreshCw className="h-4 w-4" />
               )}
@@ -160,7 +161,7 @@ const UploadHistory = () => {
         <CardContent>
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin" />
+              <LogoSpinner label="Fetching history..." />
             </div>
           ) : analyses.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">

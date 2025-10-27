@@ -89,7 +89,7 @@ export const AuthProvider = ({ children }) => {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
 
       if (response.ok && data.user) {
         if (data.token) {
@@ -103,12 +103,15 @@ export const AuthProvider = ({ children }) => {
         });
         return { success: true };
       } else {
-        toast({
-          title: 'Login failed',
-          description: data.message || 'Invalid credentials',
-          variant: 'destructive',
-        });
-        return { success: false, error: data.message };
+        // Let caller decide how to render inline errors; still toast for non-auth errors
+        if (response.status >= 500) {
+          toast({
+            title: 'Server error',
+            description: data.message || 'Please try again later',
+            variant: 'destructive',
+          });
+        }
+        return { success: false, error: data.message || (response.status === 401 ? 'Invalid email or password' : 'Login failed'), status: response.status };
       }
     } catch (error) {
       toast({

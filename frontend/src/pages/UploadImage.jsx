@@ -2,10 +2,11 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
-import { Upload, CheckCircle, XCircle, FileImage, Loader2 } from "lucide-react";
+import { Upload, CheckCircle, XCircle, FileImage } from "lucide-react";
 import { useToast } from "../hooks/use-toast";
 import { useAuth } from "../context/AuthContext";
 import { cn } from "../utils/cn";
+import LogoSpinner from "../components/LogoSpinner";
 
 const UploadImage = () => {
   const [isDragging, setIsDragging] = useState(false);
@@ -252,10 +253,14 @@ const UploadImage = () => {
                   disabled={isUploading || !imageType}
                 >
                   {isUploading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Uploading...
-                    </>
+                    <LogoSpinner
+                      inline
+                      size={20}
+                      ringWidth={3}
+                      label="Uploading..."
+                      className="mx-auto"
+                      labelClassName="text-white font-semibold"
+                    />
                   ) : (
                     'Analyze Image'
                   )}

@@ -8,6 +8,10 @@ node_modules/
 dist/
 build/
 
+# model artifacts
+backend/AI-Models/
+*.pth
+
 # logs
 npm-debug.log*
 yarn-debug.log*

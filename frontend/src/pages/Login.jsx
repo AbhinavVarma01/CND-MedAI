@@ -2,12 +2,13 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Card, CardContent } from "../components/ui/card";
 import { Label } from "../components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { Brain, User, Mail, Lock, Building, MapPin, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { User, Mail, Lock, Building, MapPin, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { useToast } from "../hooks/use-toast";
 import { useAuth } from "../context/AuthContext";
+import LogoSpinner from "../components/LogoSpinner";
 
 const Login = () => {
   const [loginData, setLoginData] = useState({
@@ -24,6 +25,7 @@ const Login = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [authError, setAuthError] = useState("");
   
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -51,6 +53,7 @@ const Login = () => {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    setAuthError("");
 
     if (!loginData.email || !loginData.password) {
       toast({ 
@@ -66,6 +69,10 @@ const Login = () => {
     if (result.success) {
       setLoginData({ email: '', password: '' });
       navigate('/dashboard');
+    } else {
+      // map status to friendly message
+      const message = result?.error || (result?.status === 401 ? 'Invalid email or password' : 'Unable to sign in');
+      setAuthError(message);
     }
   };
 
@@ -144,8 +151,12 @@ const Login = () => {
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="p-3 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg">
-              <Brain className="h-8 w-8 text-white" />
+            <div className="h-14 w-14 rounded-xl overflow-hidden shadow-lg">
+              <img
+                src="/Logo.png"
+                alt="MedAI Assist logo"
+                className="w-full h-full object-contain"
+              />
             </div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent font-display">
               MedAI Assist
@@ -157,8 +168,13 @@ const Login = () => {
         </div>
 
         {/* Login/Register Card */}
-        <Card className="shadow-2xl border-0 bg-white/80 backdrop-blur-sm">
+        <Card className="shadow-2xl border-0 bg-white/90 backdrop-blur-sm">
           <CardContent className="p-8">
+            {authError && (
+              <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700">
+                {authError}
+              </div>
+            )}
             <Tabs defaultValue="login" className="w-full">
               <TabsList className="grid w-full grid-cols-2 mb-6 bg-gray-100">
                 <TabsTrigger value="login" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
@@ -188,7 +204,7 @@ const Login = () => {
                         value={loginData.email}
                         onChange={handleLoginChange}
                         required
-                        className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                        className={`h-12 focus:ring-2 ${authError ? 'border-red-300 focus:border-red-500 focus:ring-red-200' : 'border-gray-200 focus:border-blue-500 focus:ring-blue-500'}`}
                       />
                     </div>
 
@@ -206,7 +222,7 @@ const Login = () => {
                           value={loginData.password}
                           onChange={handleLoginChange}
                           required
-                          className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 pr-10"
+                          className={`h-12 pr-10 focus:ring-2 ${authError ? 'border-red-300 focus:border-red-500 focus:ring-red-200' : 'border-gray-200 focus:border-blue-500 focus:ring-blue-500'}`}
                         />
                         <Button
                           type="button"
@@ -218,6 +234,9 @@ const Login = () => {
                           {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </Button>
                       </div>
+                      {authError && (
+                        <p className="text-xs text-red-600">{authError}</p>
+                      )}
                     </div>
                   </div>
 
@@ -227,14 +246,23 @@ const Login = () => {
                     disabled={loading}
                   >
                     {loading ? (
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        Signing in...
-                      </div>
+                      <LogoSpinner
+                        inline
+                        size={20}
+                        ringWidth={3}
+                        label="Signing in..."
+                        className="mx-auto"
+                        labelClassName="text-white font-semibold"
+                      />
                     ) : (
                       "Sign In"
                     )}
                   </Button>
+                  <div className="flex items-center justify-between text-sm">
+                    <button type="button" className="text-blue-600 hover:underline" onClick={() => toast({ title: 'Coming soon', description: 'Password reset isn\'t set up yet.' })}>
+                      Forgot password?
+                    </button>
+                  </div>
                 </form>
               </TabsContent>
 
@@ -375,10 +403,14 @@ const Login = () => {
                     disabled={loading}
                   >
                     {loading ? (
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        Creating Account...
-                      </div>
+                      <LogoSpinner
+                        inline
+                        size={20}
+                        ringWidth={3}
+                        label="Creating Account..."
+                        className="mx-auto"
+                        labelClassName="text-white font-semibold"
+                      />
                     ) : (
                       "Create Account"
                     )}
@@ -391,9 +423,22 @@ const Login = () => {
             <div className="mt-8 text-center">
               <p className="text-xs text-gray-500 leading-relaxed">
                 By using MedAI Assist, you agree to our{' '}
-                <a href="#" className="text-blue-600 hover:underline">terms of service</a>
+                <button
+                  type="button"
+                  className="text-blue-600 hover:underline"
+                  onClick={() => toast({ title: 'Coming soon', description: 'Terms of service page will be available soon.' })}
+                >
+                  terms of service
+                </button>
                 {' '}and{' '}
-                <a href="#" className="text-blue-600 hover:underline">privacy policy</a>.
+                <button
+                  type="button"
+                  className="text-blue-600 hover:underline"
+                  onClick={() => toast({ title: 'Coming soon', description: 'Privacy policy page will be available soon.' })}
+                >
+                  privacy policy
+                </button>
+                .
               </p>
             </div>
           </CardContent>
