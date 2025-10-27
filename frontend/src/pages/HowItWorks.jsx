@@ -257,7 +257,7 @@ const HowItWorks = () => {
               marginBottom: '2rem',
               opacity: 0.95
             }}>
-              Join thousands of healthcare professionals using MediAI Assist to improve patient outcomes.
+              Join thousands of healthcare professionals using MedAI Assist to improve patient outcomes.
             </p>
             <button
               onClick={() => window.location.href = '/login'}

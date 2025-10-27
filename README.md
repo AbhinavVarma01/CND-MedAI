@@ -1,4 +1,4 @@
-# MediAI Assist - Medical AI Diagnostic Platform
+# MedAI Assist - Medical AI Diagnostic Platform
 
 A comprehensive medical AI platform for analyzing medical images including CT scans, MRI, X-rays, histopathology, and EEG signals.
 

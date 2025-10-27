@@ -33,7 +33,7 @@ const Navigation = () => {
             </div>
             <div className="flex flex-col">
               <span className="text-xl font-bold bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent leading-tight font-display">
-                MediAI Assist
+                MedAI Assist
               </span>
               <span className="text-xs text-gray-500 font-medium -mt-1 font-body">
                 AI Medical Diagnostics

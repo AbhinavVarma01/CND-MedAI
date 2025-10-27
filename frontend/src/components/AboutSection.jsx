@@ -20,8 +20,8 @@ const AboutSection = () => {
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
           backgroundClip: 'text'
-        }}>
-            About MediAI Assist
+    }}>
+      About MedAI Assist
           </h2>
           <p style={{ 
             fontSize: '1.25rem', 
@@ -70,7 +70,7 @@ const AboutSection = () => {
             color: '#374151', 
             lineHeight: '1.6'
           }}>
-            At MediAI Assist, our mission is to empower healthcare professionals with cutting-edge AI technology
+            At MedAI Assist, our mission is to empower healthcare professionals with cutting-edge AI technology
             that enables early disease detection and accurate diagnosis. We believe that by combining the expertise
             of medical professionals with advanced machine learning models, we can save lives and improve patient
             outcomes worldwide.

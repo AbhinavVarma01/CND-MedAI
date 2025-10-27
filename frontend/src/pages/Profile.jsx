@@ -203,7 +203,7 @@ const Profile = () => {
       <Card className="border-border">
         <CardHeader>
           <CardTitle>Account Information</CardTitle>
-          <CardDescription>Your MediAI Assist details</CardDescription>
+          <CardDescription>Your MedAI Assist details</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid sm:grid-cols-2 gap-6">

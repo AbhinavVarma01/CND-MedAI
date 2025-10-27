@@ -148,7 +148,7 @@ const Login = () => {
               <Brain className="h-8 w-8 text-white" />
             </div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent font-display">
-              MediAI Assist
+              MedAI Assist
             </h1>
           </div>
           <p className="text-gray-600 text-sm">
@@ -390,7 +390,7 @@ const Login = () => {
             {/* Footer */}
             <div className="mt-8 text-center">
               <p className="text-xs text-gray-500 leading-relaxed">
-                By using MediAI Assist, you agree to our{' '}
+                By using MedAI Assist, you agree to our{' '}
                 <a href="#" className="text-blue-600 hover:underline">terms of service</a>
                 {' '}and{' '}
                 <a href="#" className="text-blue-600 hover:underline">privacy policy</a>.

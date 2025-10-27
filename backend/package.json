@@ -1,7 +1,7 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "MediAI Assist backend",
+  "description": "MedAI Assist backend",
   "main": "server.js",
   "type": "commonjs",
   "scripts": {

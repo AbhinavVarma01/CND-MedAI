@@ -79,7 +79,7 @@ const DashboardSidebar = () => {
             <Brain className="h-6 w-6 text-primary-foreground" />
           </div>
           <div>
-            <h1 className="font-bold text-lg text-sidebar-foreground">MediAI Assist</h1>
+            <h1 className="font-bold text-lg text-sidebar-foreground">MedAI Assist</h1>
             <p className="text-xs text-muted-foreground">AI Diagnostic Platform</p>
           </div>
         </div>
