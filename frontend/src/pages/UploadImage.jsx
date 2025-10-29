@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
-import { Upload, CheckCircle, XCircle, FileImage } from "lucide-react";
+import { Upload, CheckCircle, FileImage } from "lucide-react";
 import { useToast } from "../hooks/use-toast";
 import { useAuth } from "../context/AuthContext";
 import { cn } from "../utils/cn";
@@ -11,18 +10,15 @@ import LogoSpinner from "../components/LogoSpinner";
 const UploadImage = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [uploadedFile, setUploadedFile] = useState(null);
-  const [imageType, setImageType] = useState('');
   const [isUploading, setIsUploading] = useState(false);
-  const [analysisId, setAnalysisId] = useState(null);
+  const [pipelineResult, setPipelineResult] = useState(null);
   const { toast } = useToast();
   const { user } = useAuth();
 
-  // Resolve API base URL
-  const apiBase = (process.env.REACT_APP_API_URL && process.env.REACT_APP_API_URL.trim())
-    ? process.env.REACT_APP_API_URL.trim()
-    : (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-      ? 'http://localhost:5000'
-      : '';
+  // Flask backend runs on port 5001
+  const flaskBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:5001'
+    : 'http://localhost:5001'; // Update if deployed elsewhere
 
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -49,86 +45,144 @@ const UploadImage = () => {
   };
 
   const handleFileUpload = (file) => {
-    const validTypes = ['image/jpeg', 'image/png', 'image/dicom', 'application/dicom'];
-    const validExtensions = ['.jpg', '.jpeg', '.png', '.dcm', '.dicom'];
+    const validTypes = ['image/jpeg', 'image/png', 'text/csv', 'application/vnd.ms-excel'];
+    const validExtensions = ['.jpg', '.jpeg', '.png', '.csv'];
     
     const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
     
     if (!validTypes.includes(file.type) && !validExtensions.includes(fileExtension)) {
       toast({
         title: "Invalid File Type",
-        description: "Please upload a valid medical image file (JPG, PNG, DICOM).",
+        description: "Please upload a valid image (JPG, PNG) or CSV file for EEG analysis.",
         variant: "destructive",
       });
       return;
     }
 
     setUploadedFile(file);
+    setPipelineResult(null); // Clear previous results
     toast({
       title: "File Uploaded Successfully",
       description: `${file.name} is ready for analysis.`,
     });
   };
 
-  const convertFileToBase64 = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = error => reject(error);
-    });
-  };
-
   const handleAnalyze = async () => {
-    if (!uploadedFile || !imageType) {
+    if (!uploadedFile) {
       toast({
         title: "Missing Information",
-        description: "Please select an image type before analyzing.",
+        description: "Please upload a file before analyzing.",
         variant: "destructive",
       });
       return;
     }
 
     setIsUploading(true);
+    setPipelineResult(null);
+
     try {
-      const fileData = await convertFileToBase64(uploadedFile);
-      
-      const response = await fetch(`${apiBase}/api/analysis/upload`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          fileName: uploadedFile.name,
-          fileData,
-          fileType: uploadedFile.type,
-          imageType,
-          fileSize: uploadedFile.size,
-        }),
-      });
+      const formData = new FormData();
+      formData.append('file', uploadedFile);
 
-      const data = await response.json();
+      const filename = uploadedFile.name.toLowerCase();
+      const isCSV = filename.endsWith('.csv');
 
-      if (response.ok) {
-        setAnalysisId(data.analysisId);
-        toast({
-          title: "Analysis Started",
-          description: "Your medical image is being analyzed by our AI models...",
+      // If CSV, call epilepsy endpoint directly
+      if (isCSV) {
+        const epilepsyRes = await fetch(`${flaskBase}/epilepsy`, {
+          method: 'POST',
+          body: formData,
         });
-      } else {
-        toast({
-          title: "Upload Failed",
-          description: data.message || "Failed to upload image for analysis",
-          variant: "destructive",
-        });
+        const epilepsyData = await epilepsyRes.json();
+        if (epilepsyRes.ok) {
+          setPipelineResult({
+            stage: 'Epilepsy Analysis',
+            result: epilepsyData.result || epilepsyData.results,
+          });
+          toast({ title: 'Analysis Complete', description: 'Epilepsy prediction finished.' });
+        } else {
+          throw new Error(epilepsyData.error || 'Epilepsy analysis failed');
+        }
+        setIsUploading(false);
+        return;
       }
+
+      // Otherwise, run image pipeline: /predict → /classify → /subtype
+      // Step 1: Modality check
+      const predictRes = await fetch(`${flaskBase}/predict`, {
+        method: 'POST',
+        body: formData,
+      });
+      const predictData = await predictRes.json();
+      if (!predictRes.ok) {
+        throw new Error(predictData.error || 'Modality check failed');
+      }
+      if (predictData.prediction !== 'Our Modality') {
+        setPipelineResult({
+          stage: 'Modality Check',
+          prediction: predictData.prediction,
+          confidence: predictData.confidence,
+          message: 'Image is not from our supported modality. Pipeline stopped.',
+        });
+        toast({ title: 'Not Our Modality', description: 'Uploaded image is not supported.', variant: 'destructive' });
+        setIsUploading(false);
+        return;
+      }
+
+      // Step 2: Classify (Cancer vs Neurological)
+      const classifyRes = await fetch(`${flaskBase}/classify`, {
+        method: 'POST',
+        body: formData,
+      });
+      const classifyData = await classifyRes.json();
+      if (!classifyRes.ok) {
+        throw new Error(classifyData.error || 'Classification failed');
+      }
+
+      // Step 3: Subtype classification
+      const subtypeRes = await fetch(`${flaskBase}/subtype`, {
+        method: 'POST',
+        body: formData,
+      });
+      const subtypeData = await subtypeRes.json();
+      if (!subtypeRes.ok) {
+        throw new Error(subtypeData.error || 'Subtype classification failed');
+      }
+
+      // Step 4: Final diagnosis using disease-specific model
+      const diagnosisFormData = new FormData();
+      diagnosisFormData.append('file', uploadedFile);
+      diagnosisFormData.append('subtype', subtypeData.subtype_prediction);
+      
+      const diagnosisRes = await fetch(`${flaskBase}/diagnose`, {
+        method: 'POST',
+        body: diagnosisFormData,
+      });
+      const diagnosisData = await diagnosisRes.json();
+      if (!diagnosisRes.ok) {
+        throw new Error(diagnosisData.error || 'Final diagnosis failed');
+      }
+
+      // All 4 pipelines succeeded
+      setPipelineResult({
+        stage: 'Complete Pipeline (4 stages)',
+        modality: predictData.prediction,
+        modalityConfidence: predictData.confidence,
+        classification: classifyData.class_label,
+        classificationConfidence: classifyData.confidence,
+        subtype: subtypeData.subtype_prediction,
+        subtypeConfidence: subtypeData.subtype_confidence,
+        diagnosis: diagnosisData.diagnosis,
+        diagnosisConfidence: diagnosisData.diagnosis_confidence,
+      });
+      toast({ title: 'Analysis Complete', description: 'All 4 pipeline stages finished successfully.' });
+
     } catch (error) {
+      console.error('Pipeline error:', error);
       toast({
-        title: "Error",
-        description: "An unexpected error occurred during upload",
-        variant: "destructive",
+        title: 'Error',
+        description: error.message || 'An unexpected error occurred during analysis',
+        variant: 'destructive',
       });
     } finally {
       setIsUploading(false);
@@ -140,7 +194,7 @@ const UploadImage = () => {
       <div>
         <h1 className="text-3xl font-bold mb-2">Upload Medical Image</h1>
         <p className="text-muted-foreground">
-          Upload CT scans, MRI images, EEG signals, or histopathology images for AI analysis.
+          Upload images (JPG, PNG) or EEG CSV files for AI-powered analysis through our multi-stage pipeline.
         </p>
       </div>
 
@@ -167,7 +221,7 @@ const UploadImage = () => {
                 type="file"
                 id="file-upload"
                 className="hidden"
-                accept=".jpg,.jpeg,.png,.dcm,.dicom,image/jpeg,image/png,application/dicom"
+                accept=".jpg,.jpeg,.png,.csv,image/jpeg,image/png,text/csv"
                 onChange={handleFileInput}
               />
               <label
@@ -194,7 +248,7 @@ const UploadImage = () => {
                         Click to upload or drag and drop
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Supported formats: JPG, PNG, DICOM
+                        Supported formats: JPG, PNG, CSV (for EEG)
                       </p>
                     </div>
                   </>
@@ -228,36 +282,20 @@ const UploadImage = () => {
                 <div className="space-y-1">
                   <p className="text-sm font-medium">File Type</p>
                   <p className="text-sm text-muted-foreground">
-                    {uploadedFile.type || "DICOM Image"}
+                    {uploadedFile.type || "Unknown"}
                   </p>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Image Type</p>
-                  <Select value={imageType} onValueChange={setImageType}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select image type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="CT Scan">CT Scan</SelectItem>
-                      <SelectItem value="MRI">MRI</SelectItem>
-                      <SelectItem value="X-Ray">X-Ray</SelectItem>
-                      <SelectItem value="Histopathology">Histopathology</SelectItem>
-                      <SelectItem value="EEG">EEG</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
                 </div>
                 <Button
                   className="w-full bg-gradient-primary"
                   onClick={handleAnalyze}
-                  disabled={isUploading || !imageType}
+                  disabled={isUploading || !uploadedFile}
                 >
                   {isUploading ? (
                     <LogoSpinner
                       inline
                       size={20}
                       ringWidth={3}
-                      label="Uploading..."
+                      label="Analyzing..."
                       className="mx-auto"
                       labelClassName="text-white font-semibold"
                     />
@@ -265,14 +303,41 @@ const UploadImage = () => {
                     'Analyze Image'
                   )}
                 </Button>
-                {analysisId && (
-                  <div className="p-3 bg-success/10 border border-success/20 rounded-xl">
-                    <p className="text-sm text-success font-medium">
-                      Analysis ID: {analysisId}
-                    </p>
-                    <p className="text-xs text-success/80">
-                      Check your history for results
-                    </p>
+                {pipelineResult && (
+                  <div className="p-4 bg-info/10 border border-info/20 rounded-xl space-y-2">
+                    <p className="text-sm font-semibold text-info">Pipeline Results:</p>
+                    {pipelineResult.stage && (
+                      <p className="text-xs text-info/90">Stage: {pipelineResult.stage}</p>
+                    )}
+                    {pipelineResult.modality && (
+                      <p className="text-xs text-info/90">
+                        Modality: {pipelineResult.modality} 
+                        {pipelineResult.modalityConfidence != null && ` (${(pipelineResult.modalityConfidence * 100).toFixed(1)}%)`}
+                      </p>
+                    )}
+                    {pipelineResult.classification && (
+                      <p className="text-xs text-info/90">
+                        Classification: {pipelineResult.classification} ({pipelineResult.classificationConfidence?.toFixed(1)}%)
+                      </p>
+                    )}
+                    {pipelineResult.subtype && (
+                      <p className="text-xs text-info/90">
+                        Subtype: {pipelineResult.subtype} ({pipelineResult.subtypeConfidence?.toFixed(1)}%)
+                      </p>
+                    )}
+                    {pipelineResult.diagnosis && (
+                      <p className="text-xs font-semibold text-info">
+                        Final Diagnosis: {pipelineResult.diagnosis} ({pipelineResult.diagnosisConfidence?.toFixed(1)}%)
+                      </p>
+                    )}
+                    {pipelineResult.result && (
+                      <p className="text-xs text-info/90">
+                        Result: {JSON.stringify(pipelineResult.result)}
+                      </p>
+                    )}
+                    {pipelineResult.message && (
+                      <p className="text-xs text-info/80 italic">{pipelineResult.message}</p>
+                    )}
                   </div>
                 )}
               </>

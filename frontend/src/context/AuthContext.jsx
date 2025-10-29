@@ -33,19 +33,16 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuthStatus = async () => {
     try {
+      // Try a silent auth check with the server. We DO NOT bail out early when there's no
+      // token in localStorage because the server may be using httpOnly cookies for auth.
       const token = localStorage.getItem('token');
-      
-      // If no token, user is not authenticated
-      if (!token) {
-        setUser(null);
-        setIsAuthenticated(false);
-        setLoading(false);
-        return;
-      }
 
       const headers = { 'Content-Type': 'application/json' };
-      headers['Authorization'] = `Bearer ${token}`;
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
 
+      // Keep loading=true until the server responds so ProtectedRoute doesn't redirect on refresh
       const response = await fetch(`${apiBase}/api/auth/me`, {
         headers,
         credentials: 'include',
@@ -57,21 +54,20 @@ export const AuthProvider = ({ children }) => {
           setUser(data.user);
           setIsAuthenticated(true);
         } else {
-          // No user data, clear token
+          // No user data; clear any stale token but remain unauthenticated
           localStorage.removeItem('token');
           setUser(null);
           setIsAuthenticated(false);
         }
       } else {
-        // Server responded with error (401, 403, etc.)
+        // 401/403 or other client error - clear token and mark unauthenticated
         localStorage.removeItem('token');
         setUser(null);
         setIsAuthenticated(false);
       }
     } catch (error) {
       console.error('Auth check failed:', error);
-      // Network error or server not running
-      localStorage.removeItem('token');
+      // On network error, don't aggressively clear UI; treat as unauthenticated but keep UX stable
       setUser(null);
       setIsAuthenticated(false);
     } finally {

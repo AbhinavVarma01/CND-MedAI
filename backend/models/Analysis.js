@@ -22,11 +22,6 @@ const AnalysisSchema = new mongoose.Schema({
     type: Number, 
     required: true 
   },
-  imageType: { 
-    type: String, 
-    enum: ['CT Scan', 'MRI', 'X-Ray', 'Histopathology', 'EEG', 'Other'],
-    required: true 
-  },
   status: { 
     type: String, 
     enum: ['uploaded', 'processing', 'completed', 'failed'],
