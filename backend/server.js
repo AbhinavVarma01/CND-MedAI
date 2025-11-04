@@ -10,9 +10,10 @@ const User = require('./models/User');
 const Analysis = require('./models/Analysis');
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '20mb' }));
 app.use(cookieParser());
 app.use(cors({ origin: true, credentials: true }));
+app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 
 const MONGO_URI = process.env.MONGO_URI;
 const DB_NAME = process.env.DB_NAME;
@@ -36,7 +37,7 @@ mongoose.connect(MONGO_URI, mongooseOptions)
 
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { fullName, email, password, hospitalName, area } = req.body;
+    const { fullName, doctorId, email, password, hospitalName, area } = req.body;
     if (!email || !password) return res.status(400).json({ message: 'Email and password are required' });
 
     const existing = await User.findOne({ email });
@@ -45,7 +46,7 @@ app.post('/api/auth/register', async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
-    const user = new User({ fullName, email, passwordHash, hospitalName, area });
+    const user = new User({ fullName, doctorId, email, passwordHash, hospitalName, area });
   const saved = await user.save();
   console.log('User saved:', saved._id.toString());
 
@@ -160,6 +161,7 @@ app.get('/api/profile', async (req, res) => {
 
     console.log('User found:', { 
       fullName: user.fullName, 
+      doctorId: user.doctorId,
       email: user.email, 
       hospitalName: user.hospitalName, 
       area: user.area,
@@ -169,6 +171,7 @@ app.get('/api/profile', async (req, res) => {
     // Return profile in the format expected by frontend
     return res.json({
       full_name: user.fullName || '',
+      doctor_id: user.doctorId || '',
       email: user.email || '',
       hospital_name: user.hospitalName || '',
       area: user.area || '',
@@ -197,10 +200,11 @@ app.put('/api/profile', async (req, res) => {
       userId = user._id;
     }
 
-    const { full_name, hospital_name, area, profile_picture } = req.body;
+    const { full_name, doctor_id, hospital_name, area, profile_picture } = req.body;
 
     const updateData = {};
     if (full_name !== undefined) updateData.fullName = full_name;
+    if (doctor_id !== undefined) updateData.doctorId = doctor_id;
     if (hospital_name !== undefined) updateData.hospitalName = hospital_name;
     if (area !== undefined) updateData.area = area;
     if (profile_picture !== undefined) updateData.profilePicture = profile_picture;
@@ -215,6 +219,7 @@ app.put('/api/profile', async (req, res) => {
 
     return res.json({
       full_name: updatedUser.fullName || '',
+      doctor_id: updatedUser.doctorId || '',
       email: updatedUser.email || '',
       hospital_name: updatedUser.hospitalName || '',
       area: updatedUser.area || '',

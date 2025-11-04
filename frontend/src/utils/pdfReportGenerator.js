@@ -221,6 +221,14 @@ export const generateMedicalReport = (analysis, user) => {
       doc.setFont('helvetica', 'normal');
       yPos += 6;
     }
+    
+    if (analysis.patientInfo.doctorId) {
+      doc.text(`Doctor ID:`, leftCol, yPos);
+      doc.setFont('helvetica', 'bold');
+      doc.text(analysis.patientInfo.doctorId, leftCol + 40, yPos);
+      doc.setFont('helvetica', 'normal');
+      yPos += 6;
+    }
   }
   
   yPos += 6;

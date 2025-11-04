@@ -73,20 +73,18 @@ const DashboardSidebar = () => {
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 bg-sidebar border-r border-sidebar-border flex flex-col">
-      {/* Logo */}
-      <div className="p-6 border-b border-sidebar-border">
-        <div className="flex items-center gap-2">
-          <div className="h-10 w-10 rounded-lg overflow-hidden shadow-soft">
-            <img
-              src="/Logo.png"
-              alt="MedAI Assist logo"
-              className="w-full h-full object-contain"
-            />
-          </div>
-          <div>
-            <h1 className="font-bold text-lg text-sidebar-foreground">MedAI Assist</h1>
-            <p className="text-xs text-muted-foreground">AI Diagnostic Platform</p>
-          </div>
+      {/* Logo and Title Section */}
+      <div className="pt-8 pb-6 border-b border-sidebar-border flex flex-col items-center">
+        <div className="flex flex-col items-center gap-2">
+          <img
+            src="/Logo.png"
+            alt="MedAI Assist logo"
+            className="w-14 h-14 rounded-full shadow-lg border-2 border-primary bg-white object-contain"
+          />
+          <h1 className="font-extrabold text-xl text-sidebar-foreground mt-2 tracking-tight">MedAI Assist</h1>
+          <p className="text-xs text-muted-foreground text-center max-w-[180px] leading-snug mt-1">
+            AI Diagnostic Platform<br />for Cancer & Neurological Disorders
+          </p>
         </div>
       </div>
 

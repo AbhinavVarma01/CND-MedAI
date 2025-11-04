@@ -17,6 +17,7 @@ const Profile = () => {
   const fileInputRef = useRef(null);
   const [profile, setProfile] = useState({
     full_name: "",
+    doctor_id: "",
     email: "",
     hospital_name: "",
     area: "",
@@ -39,6 +40,7 @@ const Profile = () => {
         console.log("Profile data received:", data); // Debug log
         setProfile({
           full_name: data.full_name || "",
+          doctor_id: data.doctor_id || "",
           email: data.email || "",
           hospital_name: data.hospital_name || "",
           area: data.area || "",
@@ -208,6 +210,18 @@ const Profile = () => {
                 name="full_name"
                 placeholder="Dr. John Smith"
                 value={profile.full_name || ""}
+                disabled
+                className="bg-muted"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="doctor_id">Doctor ID</Label>
+              <Input
+                id="doctor_id"
+                name="doctor_id"
+                placeholder="DOC12345"
+                value={profile.doctor_id || ""}
                 disabled
                 className="bg-muted"
               />

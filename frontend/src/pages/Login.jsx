@@ -17,6 +17,7 @@ const Login = () => {
   });
   const [registerData, setRegisterData] = useState({
     fullName: "",
+    doctorId: "",
     email: "",
     password: "",
     confirmPassword: "",
@@ -86,7 +87,7 @@ const Login = () => {
     e.preventDefault();
 
     // Validation
-    if (!registerData.fullName || !registerData.email || !registerData.password || 
+    if (!registerData.fullName || !registerData.doctorId || !registerData.email || !registerData.password || 
         !registerData.hospitalName || !registerData.area) {
       toast({ 
         title: 'Validation Error', 
@@ -116,6 +117,7 @@ const Login = () => {
 
     const result = await register({
       fullName: registerData.fullName,
+      doctorId: registerData.doctorId,
       email: registerData.email,
       password: registerData.password,
       hospitalName: registerData.hospitalName,
@@ -125,6 +127,7 @@ const Login = () => {
     if (result.success) {
       setRegisterData({
         fullName: '',
+        doctorId: '',
         email: registerData.email,
         password: '',
         confirmPassword: '',
@@ -169,7 +172,7 @@ const Login = () => {
             </h1>
           </div>
           <p className="text-gray-600 text-sm">
-            Advanced AI-powered medical diagnostics platform
+            Advanced AI-powered medical diagnostics platform for Cancer and Neurological disorders.
           </p>
         </div>
 
@@ -287,6 +290,23 @@ const Login = () => {
                         type="text"
                         placeholder="Dr. John Smith"
                         value={registerData.fullName}
+                        onChange={handleRegisterChange}
+                        required
+                        className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="register-doctor-id" className="flex items-center gap-2 text-sm font-medium font-body">
+                        <User className="h-4 w-4" />
+                        Doctor ID
+                      </Label>
+                      <Input
+                        id="register-doctor-id"
+                        name="doctorId"
+                        type="text"
+                        placeholder="DOC12345"
+                        value={registerData.doctorId}
                         onChange={handleRegisterChange}
                         required
                         className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"

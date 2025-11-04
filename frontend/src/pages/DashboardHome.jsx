@@ -117,22 +117,21 @@ const DashboardHome = () => {
   const firstName = getFirstName();
 
   return (
-    <div className="space-y-8">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-3xl font-bold">Dashboard</h1>
+    <div className="space-y-4">
+      {/* Welcome Section and Back Button in same row */}
+      <div className="flex items-center justify-between mt-4 mb-4">
+        <div>
+          <h1 className="text-3xl font-bold mb-1">
+            {`Welcome to your dashboard${firstName ? `, ${firstName}` : ""}!`}
+          </h1>
+          <p className="text-muted-foreground">
+            Here's what's happening with your diagnostic analyses today.
+          </p>
+        </div>
         <Button onClick={() => navigate("/")}
-          className="bg-gradient-to-r from-teal-600 to-cyan-600 text-white font-semibold px-4 py-2 rounded-medical shadow-medical hover:shadow-glow transition-all duration-200 hover:scale-105">
+          className="bg-gradient-to-r from-teal-600 to-cyan-600 text-white font-semibold px-4 py-2 rounded-medical shadow-medical hover:shadow-glow transition-all duration-200 hover:scale-105 ml-4">
           Back to Home Page
         </Button>
-      </div>
-      {/* Welcome Section */}
-      <div>
-        <h1 className="text-3xl font-bold mb-2">
-          {`Welcome to your dashboard${firstName ? `, ${firstName}` : ""}!`}
-        </h1>
-        <p className="text-muted-foreground">
-          Here's what's happening with your diagnostic analyses today.
-        </p>
       </div>
 
       {/* Stats Grid */}

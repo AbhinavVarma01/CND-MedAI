@@ -37,7 +37,8 @@ const UploadImage = () => {
     email: '',
     symptoms: '',
     medicalHistory: '',
-    referringDoctor: ''
+    referringDoctor: '',
+    doctorId: ''
   });
   
   const { toast } = useToast();
@@ -67,11 +68,12 @@ const UploadImage = () => {
         
         if (response.ok) {
           const profileData = await response.json();
-          // Auto-fill referring doctor with user's full name
+          // Auto-fill referring doctor with user's full name and doctor ID
           if (profileData.full_name) {
             setPatientInfo(prev => ({
               ...prev,
-              referringDoctor: profileData.full_name
+              referringDoctor: profileData.full_name,
+              doctorId: profileData.doctor_id || ''
             }));
           }
         }
@@ -212,7 +214,8 @@ const UploadImage = () => {
                 email: patientInfo.email || undefined,
                 symptoms: patientInfo.symptoms || undefined,
                 medicalHistory: patientInfo.medicalHistory || undefined,
-                referringDoctor: patientInfo.referringDoctor || undefined
+                referringDoctor: patientInfo.referringDoctor || undefined,
+                doctorId: patientInfo.doctorId || undefined
               },
               results: {
                 diagnosis: resultText,
@@ -392,7 +395,8 @@ const UploadImage = () => {
             email: patientInfo.email || undefined,
             symptoms: patientInfo.symptoms || undefined,
             medicalHistory: patientInfo.medicalHistory || undefined,
-            referringDoctor: patientInfo.referringDoctor || undefined
+            referringDoctor: patientInfo.referringDoctor || undefined,
+            doctorId: patientInfo.doctorId || undefined
           },
           results: {
             diagnosis: diagnosisData.diagnosis,
@@ -648,6 +652,17 @@ const UploadImage = () => {
                 placeholder="Doctor's name"
                 value={patientInfo.referringDoctor}
                 onChange={(e) => setPatientInfo({...patientInfo, referringDoctor: e.target.value})}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Doctor ID</label>
+              <input
+                type="text"
+                className="w-full px-3 py-2 border border-border rounded-md bg-background"
+                placeholder="Doctor ID"
+                value={patientInfo.doctorId}
+                onChange={(e) => setPatientInfo({...patientInfo, doctorId: e.target.value})}
               />
             </div>
           </CardContent>

@@ -130,6 +130,9 @@ const AnalysisSchema = new mongoose.Schema({
     },
     referringDoctor: {
       type: String
+    },
+    doctorId: {
+      type: String
     }
   },
   metadata: {

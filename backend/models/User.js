@@ -4,6 +4,7 @@ const COLLECTION_NAME = process.env.COLLECTION_NAME || 'users';
 
 const UserSchema = new mongoose.Schema({
   fullName: { type: String },
+  doctorId: { type: String },
   email: { type: String, required: true, unique: true },
   passwordHash: { type: String, required: true },
   hospitalName: { type: String },
