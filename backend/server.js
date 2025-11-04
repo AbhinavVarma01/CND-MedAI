@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 
 const User = require('./models/User');
+const Analysis = require('./models/Analysis');
 
 const app = express();
 app.use(express.json());
@@ -126,6 +127,253 @@ app.post('/api/auth/logout', (req, res) => {
   } catch (err) {
     console.error('Logout error', err);
     return res.status(500).json({ error: 'Logout failed' });
+  }
+});
+
+// Get user profile
+app.get('/api/profile', async (req, res) => {
+  try {
+    let userId;
+    console.log('Profile endpoint hit. USE_JWT:', USE_JWT);
+    console.log('Cookies:', req.cookies);
+    console.log('Headers:', req.headers.authorization);
+    
+    if (USE_JWT) {
+      const token = req.cookies.token || req.headers.authorization?.split(' ')[1];
+      console.log('Token found:', !!token);
+      if (!token) return res.status(401).json({ message: 'Not authenticated' });
+      const payload = jwt.verify(token, JWT_SECRET);
+      userId = payload.id;
+      console.log('User ID from JWT:', userId);
+    } else {
+      const email = req.cookies.user_email || req.headers['x-user-email'];
+      console.log('Email from cookie:', email);
+      if (!email) return res.status(401).json({ message: 'Not authenticated' });
+      const user = await User.findOne({ email });
+      if (!user) return res.status(401).json({ message: 'Not authenticated' });
+      userId = user._id;
+      console.log('User ID from email lookup:', userId);
+    }
+
+    const user = await User.findById(userId).select('-passwordHash');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    console.log('User found:', { 
+      fullName: user.fullName, 
+      email: user.email, 
+      hospitalName: user.hospitalName, 
+      area: user.area,
+      hasProfilePicture: !!user.profilePicture
+    });
+
+    // Return profile in the format expected by frontend
+    return res.json({
+      full_name: user.fullName || '',
+      email: user.email || '',
+      hospital_name: user.hospitalName || '',
+      area: user.area || '',
+      profile_picture: user.profilePicture || ''
+    });
+  } catch (err) {
+    console.error('Profile fetch error:', err);
+    return res.status(500).json({ error: 'Failed to fetch profile' });
+  }
+});
+
+// Update user profile
+app.put('/api/profile', async (req, res) => {
+  try {
+    let userId;
+    if (USE_JWT) {
+      const token = req.cookies.token || req.headers.authorization?.split(' ')[1];
+      if (!token) return res.status(401).json({ message: 'Not authenticated' });
+      const payload = jwt.verify(token, JWT_SECRET);
+      userId = payload.id;
+    } else {
+      const email = req.cookies.user_email || req.headers['x-user-email'];
+      if (!email) return res.status(401).json({ message: 'Not authenticated' });
+      const user = await User.findOne({ email });
+      if (!user) return res.status(401).json({ message: 'Not authenticated' });
+      userId = user._id;
+    }
+
+    const { full_name, hospital_name, area, profile_picture } = req.body;
+
+    const updateData = {};
+    if (full_name !== undefined) updateData.fullName = full_name;
+    if (hospital_name !== undefined) updateData.hospitalName = hospital_name;
+    if (area !== undefined) updateData.area = area;
+    if (profile_picture !== undefined) updateData.profilePicture = profile_picture;
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      updateData,
+      { new: true }
+    ).select('-passwordHash');
+
+    if (!updatedUser) return res.status(404).json({ message: 'User not found' });
+
+    return res.json({
+      full_name: updatedUser.fullName || '',
+      email: updatedUser.email || '',
+      hospital_name: updatedUser.hospitalName || '',
+      area: updatedUser.area || '',
+      profile_picture: updatedUser.profilePicture || ''
+    });
+  } catch (err) {
+    console.error('Profile update error:', err);
+    return res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
+// Get analysis history for authenticated user
+app.get('/api/analysis/history', async (req, res) => {
+  try {
+    // Get user from auth
+    let userId;
+    if (USE_JWT) {
+      const token = req.cookies.token || req.headers.authorization?.split(' ')[1];
+      if (!token) return res.status(401).json({ message: 'Not authenticated' });
+      const payload = jwt.verify(token, JWT_SECRET);
+      userId = payload.id;
+    } else {
+      const email = req.cookies.user_email || req.headers['x-user-email'];
+      if (!email) return res.status(401).json({ message: 'Not authenticated' });
+      const user = await User.findOne({ email });
+      if (!user) return res.status(401).json({ message: 'Not authenticated' });
+      userId = user._id;
+    }
+
+    // Get pagination params
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    // Fetch analyses for the user
+    const analyses = await Analysis.find({ userId })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    // Get total count for pagination
+    const total = await Analysis.countDocuments({ userId });
+    const pages = Math.ceil(total / limit);
+
+    return res.json({
+      analyses,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages
+      }
+    });
+  } catch (err) {
+    console.error('History fetch error:', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get comprehensive counts for dashboard stats
+app.get('/api/analysis/category-counts', async (req, res) => {
+  try {
+    let userId;
+    if (USE_JWT) {
+      const token = req.cookies.token || req.headers.authorization?.split(' ')[1];
+      if (!token) return res.status(401).json({ message: 'Not authenticated' });
+      const payload = jwt.verify(token, JWT_SECRET);
+      userId = payload.id;
+    } else {
+      const email = req.cookies.user_email || req.headers['x-user-email'];
+      if (!email) return res.status(401).json({ message: 'Not authenticated' });
+      const user = await User.findOne({ email });
+      if (!user) return res.status(401).json({ message: 'Not authenticated' });
+      userId = user._id;
+    }
+
+    // Get total count
+    const totalCount = await Analysis.countDocuments({ userId });
+
+    // Get today's count (last 24 hours)
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const todayCount = await Analysis.countDocuments({
+      userId,
+      createdAt: { $gte: twentyFourHoursAgo }
+    });
+
+    // Cancer: diagnosis contains 'cancer' (case-insensitive)
+    const cancerCount = await Analysis.countDocuments({
+      userId,
+      'results.diagnosis': { $regex: /cancer/i }
+    });
+
+    // Neurological: diagnosis contains 'neuro' or 'epilepsy' or 'multiple sclerosis' (case-insensitive)
+    const neuroCount = await Analysis.countDocuments({
+      userId,
+      'results.diagnosis': { $regex: /(neuro|epilepsy|multiple sclerosis|alzheimer)/i }
+    });
+
+    return res.json({ todayCount, totalCount, cancerCount, neuroCount });
+  } catch (err) {
+    console.error('Category count error:', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Save a completed analysis to history. Expects a completed result and base64 image data.
+app.post('/api/analysis/upload', async (req, res) => {
+  try {
+    // Auth
+    let userId;
+    if (USE_JWT) {
+      const token = req.cookies.token || req.headers.authorization?.split(' ')[1];
+      if (!token) return res.status(401).json({ message: 'Not authenticated' });
+      const payload = jwt.verify(token, JWT_SECRET);
+      userId = payload.id;
+    } else {
+      const email = req.cookies.user_email || req.headers['x-user-email'];
+      if (!email) return res.status(401).json({ message: 'Not authenticated' });
+      const user = await User.findOne({ email });
+      if (!user) return res.status(401).json({ message: 'Not authenticated' });
+      userId = user._id;
+    }
+
+  const { fileName, fileData, fileType, fileSize, imageType, results, patientInfo } = req.body;
+
+    if (!results || !results.diagnosis) {
+      return res.status(400).json({ message: 'No completed result provided - only completed analyses are stored' });
+    }
+
+    // Ensure we use the same mongoose connection as the User model (login DB)
+    const AnalysisModel = mongoose.connection.model('Analysis') || Analysis;
+
+    // Create analysis record storing base64 image data
+    const analysis = new AnalysisModel({
+      userId,
+      fileName: fileName || `upload_${Date.now()}`,
+      originalName: fileName || `upload_${Date.now()}`,
+      fileType: fileType || 'image',
+      fileSize: fileSize || 0,
+      status: 'completed',
+      results: {
+        diagnosis: results.diagnosis,
+        confidence: results.confidence != null ? results.confidence : 0,
+        findings: results.findings || [],
+        recommendations: results.recommendations || [],
+        processingTime: results.processingTime || 0
+      },
+      fileData: fileData || null,
+      imageType: imageType || null,
+      filePath: '',
+      patientInfo: patientInfo || null
+    });
+
+    const saved = await analysis.save();
+    return res.json({ analysisId: saved._id });
+  } catch (err) {
+    console.error('Upload save error:', err);
+    return res.status(500).json({ message: 'Server error' });
   }
 });
 

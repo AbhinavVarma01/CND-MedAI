@@ -2,9 +2,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { Button } from "../components/ui/button";   
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { Avatar, AvatarFallback } from "../components/ui/avatar";   
+import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";   
 import { Camera, Mail, Building, MapPin } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "../hooks/use-toast";
 import LogoSpinner from "../components/LogoSpinner";
@@ -13,12 +13,14 @@ const Profile = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
   const [profile, setProfile] = useState({
     full_name: "",
     email: "",
     hospital_name: "",
     area: "",
+    profile_picture: "",
   });
 
   useEffect(() => {
@@ -34,7 +36,14 @@ const Profile = () => {
           throw new Error(body.error || "Failed to load profile");
         }
         const data = await res.json();
-        setProfile(data);
+        console.log("Profile data received:", data); // Debug log
+        setProfile({
+          full_name: data.full_name || "",
+          email: data.email || "",
+          hospital_name: data.hospital_name || "",
+          area: data.area || "",
+          profile_picture: data.profile_picture || "",
+        });
       } catch (err) {
         console.error("Failed to load profile", err);
         toast({ title: "Error", description: err.message || "Failed to load profile", variant: "destructive" });
@@ -46,41 +55,83 @@ const Profile = () => {
     fetchProfile();
   }, [navigate, toast]);
 
-  const handleInputChange = (e) => {
-    setProfile(prev => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }));
+  const handlePhotoClick = () => {
+    fileInputRef.current?.click();
   };
 
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      const res = await fetch("/api/profile", {
-        method: "PUT",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          full_name: profile.full_name,
-          hospital_name: profile.hospital_name,
-          area: profile.area,
-        }),
-      });
+  const handlePhotoChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || "Failed to update profile");
-      }
-
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
       toast({
-        title: "Profile Updated",
-        description: "Your profile information has been saved successfully.",
+        title: "Invalid File",
+        description: "Please select an image file (JPG, PNG, etc.)",
+        variant: "destructive",
       });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File Too Large",
+        description: "Please select an image smaller than 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploading(true);
+
+    try {
+      // Convert to base64
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64String = reader.result;
+
+        // Update profile picture on backend
+        const res = await fetch("/api/profile", {
+          method: "PUT",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            profile_picture: base64String,
+          }),
+        });
+
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error || "Failed to update profile picture");
+        }
+
+        const data = await res.json();
+        setProfile(prev => ({
+          ...prev,
+          profile_picture: data.profile_picture || "",
+        }));
+
+        toast({
+          title: "Profile Picture Updated",
+          description: "Your profile picture has been updated successfully.",
+        });
+      };
+
+      reader.onerror = () => {
+        throw new Error("Failed to read image file");
+      };
+
+      reader.readAsDataURL(file);
     } catch (err) {
-      console.error("Failed to update profile", err);
-      toast({ title: "Error", description: err.message || "Failed to update profile", variant: "destructive" });
+      console.error("Failed to update profile picture", err);
+      toast({
+        title: "Error",
+        description: err.message || "Failed to update profile picture",
+        variant: "destructive",
+      });
     } finally {
-      setSaving(false);
+      setUploading(false);
     }
   };
 
@@ -111,20 +162,34 @@ const Profile = () => {
           <CardContent className="flex flex-col items-center space-y-4">
             <div className="relative">
               <Avatar className="h-32 w-32">
-                <AvatarFallback className="text-3xl bg-gradient-primary text-primary-foreground">
-                  {profile.full_name.charAt(0) || "U"}
-                </AvatarFallback>
+                {profile.profile_picture ? (
+                  <AvatarImage src={profile.profile_picture} alt={profile.full_name} />
+                ) : (
+                  <AvatarFallback className="text-3xl bg-gradient-primary text-primary-foreground">
+                    {(profile.full_name && profile.full_name.charAt(0)) || "U"}
+                  </AvatarFallback>
+                )}
               </Avatar>
               <Button
                 size="icon"
                 className="absolute bottom-0 right-0 h-10 w-10 rounded-full bg-gradient-primary hover:opacity-90 shadow-medium"
+                onClick={handlePhotoClick}
+                disabled={uploading}
               >
                 <Camera className="h-5 w-5" />
               </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoChange}
+                className="hidden"
+              />
             </div>
             <div className="text-center">
-              <p className="font-semibold text-lg">{profile.full_name}</p>
-              <p className="text-sm text-muted-foreground">{profile.hospital_name}</p>
+              <p className="font-semibold text-lg">{profile.full_name || "User"}</p>
+              <p className="text-sm text-muted-foreground">{profile.hospital_name || "No hospital set"}</p>
+              {uploading && <p className="text-xs text-teal-500 mt-2">Uploading...</p>}
             </div>
           </CardContent>
         </Card>
@@ -133,7 +198,7 @@ const Profile = () => {
         <Card className="border-border lg:col-span-2">
           <CardHeader>
             <CardTitle>Personal Information</CardTitle>
-            <CardDescription>Update your personal details</CardDescription>
+            <CardDescription>Your account details</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2">
@@ -142,8 +207,9 @@ const Profile = () => {
                 id="full_name"
                 name="full_name"
                 placeholder="Dr. John Smith"
-                value={profile.full_name}
-                onChange={handleInputChange}
+                value={profile.full_name || ""}
+                disabled
+                className="bg-muted"
               />
             </div>
 
@@ -154,12 +220,11 @@ const Profile = () => {
                 <Input
                   id="email"
                   type="email"
-                  value={profile.email}
+                  value={profile.email || ""}
                   disabled
                   className="pl-10 bg-muted"
                 />
               </div>
-              <p className="text-xs text-muted-foreground">Email cannot be changed</p>
             </div>
 
             <div className="space-y-2">
@@ -170,9 +235,9 @@ const Profile = () => {
                   id="hospital_name"
                   name="hospital_name"
                   placeholder="General Hospital"
-                  value={profile.hospital_name}
-                  onChange={handleInputChange}
-                  className="pl-10"
+                  value={profile.hospital_name || ""}
+                  disabled
+                  className="pl-10 bg-muted"
                 />
               </div>
             </div>
@@ -185,24 +250,11 @@ const Profile = () => {
                   id="area"
                   name="area"
                   placeholder="New York, NY"
-                  value={profile.area}
-                  onChange={handleInputChange}
-                  className="pl-10"
+                  value={profile.area || ""}
+                  disabled
+                  className="pl-10 bg-muted"
                 />
               </div>
-            </div>
-
-            <div className="flex gap-4 pt-4">
-              <Button 
-                className="bg-gradient-primary hover:opacity-90" 
-                onClick={handleSave}
-                disabled={saving}
-              >
-                {saving ? "Saving..." : "Save Changes"}
-              </Button>
-              <Button variant="outline" onClick={() => window.location.reload()}>
-                Cancel
-              </Button>
             </div>
           </CardContent>
         </Card>
@@ -218,11 +270,11 @@ const Profile = () => {
           <div className="grid sm:grid-cols-2 gap-6">
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">Hospital</p>
-              <p className="text-lg font-semibold">{profile.hospital_name}</p>
+              <p className="text-lg font-semibold">{profile.hospital_name || "Not specified"}</p>
             </div>
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">Location</p>
-              <p className="text-lg font-semibold">{profile.area}</p>
+              <p className="text-lg font-semibold">{profile.area || "Not specified"}</p>
             </div>
           </div>
         </CardContent>

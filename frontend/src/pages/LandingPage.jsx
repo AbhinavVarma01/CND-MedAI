@@ -6,7 +6,7 @@ import AboutSection from '../components/AboutSection';
 
 const LandingPage = () => {
   return (
-  <div className="min-h-screen">
+    <div className="min-h-screen">
       <Navigation />
       <AnimatedBackground />
       <main>

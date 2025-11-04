@@ -78,12 +78,59 @@ const AnalysisSchema = new mongoose.Schema({
       default: 0 
     }
   },
+  // Either a server file path OR the base64 data may be stored in `fileData`
   filePath: { 
-    type: String, 
-    required: true 
+    type: String
+  },
+  // Store the uploaded image as base64 (data URL). Optional - used when not saving to disk
+  fileData: {
+    type: String
+  },
+  // Image type/category (MRI, X-Ray, Histopathology, EEG, etc.)
+  imageType: {
+    type: String
   },
   thumbnailPath: { 
     type: String 
+  },
+  // Patient Information
+  patientInfo: {
+    name: {
+      type: String,
+      required: true
+    },
+    age: {
+      type: Number,
+      required: true,
+      min: 0,
+      max: 150
+    },
+    gender: {
+      type: String,
+      enum: ['Male', 'Female', 'Other'],
+      required: true
+    },
+    patientId: {
+      type: String
+    },
+    contactNumber: {
+      type: String
+    },
+    email: {
+      type: String
+    },
+    address: {
+      type: String
+    },
+    medicalHistory: {
+      type: String
+    },
+    symptoms: {
+      type: String
+    },
+    referringDoctor: {
+      type: String
+    }
   },
   metadata: {
     dimensions: {
@@ -93,8 +140,6 @@ const AnalysisSchema = new mongoose.Schema({
     },
     modality: String,
     studyDate: Date,
-    patientAge: Number,
-    patientSex: String,
     bodyPart: String
   }
 }, { 

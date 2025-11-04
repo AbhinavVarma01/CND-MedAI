@@ -1,4 +1,5 @@
 import { Home, Upload, History, User, LogOut } from "lucide-react";
+import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import { NavLink, useNavigate } from "react-router-dom";
 import { cn } from "../utils/cn";
 import { useToast } from "../hooks/use-toast";
@@ -114,10 +115,16 @@ const DashboardSidebar = () => {
 
       {/* User Profile Section */}
       <div className="p-4 border-t border-sidebar-border space-y-2">
-  <div className="flex items-center gap-3 p-3 rounded-xl bg-sidebar-accent">
-          <div className="h-10 w-10 rounded-full bg-gradient-primary flex items-center justify-center text-primary-foreground font-medium">
-            {(profile?.fullName || profile?.full_name || profile?.email || 'U').charAt(0).toUpperCase()}
-          </div>
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-sidebar-accent">
+          <Avatar className="h-10 w-10">
+            {profile && profile.profilePicture ? (
+              <AvatarImage src={profile.profilePicture} alt={profile.fullName || profile.full_name || 'Profile'} />
+            ) : (
+              <AvatarFallback className="text-lg bg-gradient-primary text-primary-foreground">
+                {(profile?.fullName || profile?.full_name || profile?.email || 'U').charAt(0).toUpperCase()}
+              </AvatarFallback>
+            )}
+          </Avatar>
           <div className="flex-1 min-w-0">
             <p className="font-medium text-sm text-sidebar-foreground truncate">
               {profile?.fullName || profile?.full_name || "Loading..."}

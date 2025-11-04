@@ -1,19 +1,22 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Activity, Upload, FileText, TrendingUp } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import dashboardPreview from "../assets/dashboard-preview.jpg";
 import { useAuth } from "../context/AuthContext";
+import { cn } from "../utils/cn";
 
 const DashboardHome = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [stats, setStats] = useState({
-    totalScans: 0,
-    completedScans: 0,
-    processingScans: 0,
-    avgConfidence: 0
+    todayCount: 0,
+    totalCount: 0,
+    cancerCount: 0,
+    neuroCount: 0
   });
+  const [recentActivity, setRecentActivity] = useState([]);
 
   // Resolve API base URL
   const apiBase = (process.env.REACT_APP_API_URL && process.env.REACT_APP_API_URL.trim())
@@ -22,13 +25,37 @@ const DashboardHome = () => {
       ? 'http://localhost:5000'
       : '';
 
+  // Fetch counts for dashboard stats
+  const fetchCategoryCounts = async () => {
+    try {
+      const response = await fetch(`${apiBase}/api/analysis/category-counts`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setStats({
+          todayCount: data.todayCount || 0,
+          totalCount: data.totalCount || 0,
+          cancerCount: data.cancerCount || 0,
+          neuroCount: data.neuroCount || 0
+        });
+      }
+    } catch (error) {
+      console.error('Failed to fetch category counts:', error);
+    }
+  };
+
   useEffect(() => {
-    fetchStats();
+  fetchCategoryCounts();
+  fetchRecentActivity();
   }, []);
 
-  const fetchStats = async () => {
+  const fetchRecentActivity = async () => {
     try {
-      const response = await fetch(`${apiBase}/api/analysis/history?limit=100`, {
+      const response = await fetch(`${apiBase}/api/analysis/history?limit=3`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
@@ -37,36 +64,44 @@ const DashboardHome = () => {
 
       if (response.ok) {
         const data = await response.json();
-        const analyses = data.analyses;
-        
-        const completedAnalyses = analyses.filter(a => a.status === 'completed');
-        const avgConfidence = completedAnalyses.length > 0 
-          ? Math.round(completedAnalyses.reduce((sum, a) => sum + (a.results?.confidence || 0), 0) / completedAnalyses.length)
-          : 0;
+        const formattedActivity = data.analyses.map(analysis => {
+          // Calculate time ago
+          const uploadDate = new Date(analysis.createdAt);
+          const now = new Date();
+          const diffMs = now - uploadDate;
+          const diffMins = Math.floor(diffMs / 60000);
+          const diffHours = Math.floor(diffMs / 3600000);
+          const diffDays = Math.floor(diffMs / 86400000);
+          
+          let timeAgo;
+          if (diffMins < 60) {
+            timeAgo = diffMins <= 1 ? 'Just now' : `${diffMins} mins ago`;
+          } else if (diffHours < 24) {
+            timeAgo = diffHours === 1 ? '1 hour ago' : `${diffHours} hours ago`;
+          } else {
+            timeAgo = diffDays === 1 ? '1 day ago' : `${diffDays} days ago`;
+          }
 
-        setStats({
-          totalScans: data.pagination.total,
-          completedScans: completedAnalyses.length,
-          processingScans: analyses.filter(a => a.status === 'processing').length,
-          avgConfidence
+          return {
+            type: analysis.imageType || 'Medical Image',
+            patient: analysis.patientInfo?.name || 'Unknown Patient',
+            result: analysis.results?.diagnosis || analysis.status,
+            date: timeAgo
+          };
         });
+        
+        setRecentActivity(formattedActivity);
       }
     } catch (error) {
-      console.error('Failed to fetch stats:', error);
+      console.error('Failed to fetch recent activity:', error);
     }
   };
 
   const statsData = [
-    { label: "Total Scans", value: stats.totalScans.toString(), icon: Upload, color: "text-primary" },
-    { label: "Completed", value: stats.completedScans.toString(), icon: Activity, color: "text-secondary" },
-    { label: "Processing", value: stats.processingScans.toString(), icon: FileText, color: "text-accent" },
-    { label: "Avg. Confidence", value: `${stats.avgConfidence}%`, icon: TrendingUp, color: "text-success" },
-  ];
-
-  const recentActivity = [
-    { type: "CT Scan", patient: "Patient #4521", result: "Normal", date: "2 hours ago" },
-    { type: "MRI Brain", patient: "Patient #4520", result: "Abnormal - Review Required", date: "5 hours ago" },
-    { type: "Histopathology", patient: "Patient #4519", result: "Normal", date: "1 day ago" },
+  { label: "Today Uploads (24hrs)", value: stats.todayCount.toString(), icon: Activity, color: "text-primary" },
+  { label: "Total No of Uploads", value: stats.totalCount.toString(), icon: Upload, color: "text-secondary" },
+  { label: "Total Cancer", value: stats.cancerCount.toString(), icon: FileText, color: "text-destructive" },
+  { label: "Total Neuro", value: stats.neuroCount.toString(), icon: TrendingUp, color: "text-success" },
   ];
 
   const getFirstName = () => {
@@ -83,6 +118,13 @@ const DashboardHome = () => {
 
   return (
     <div className="space-y-8">
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <Button onClick={() => navigate("/")}
+          className="bg-gradient-to-r from-teal-600 to-cyan-600 text-white font-semibold px-4 py-2 rounded-medical shadow-medical hover:shadow-glow transition-all duration-200 hover:scale-105">
+          Back to Home Page
+        </Button>
+      </div>
       {/* Welcome Section */}
       <div>
         <h1 className="text-3xl font-bold mb-2">
@@ -141,26 +183,34 @@ const DashboardHome = () => {
             <CardDescription>Latest diagnostic analyses</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {recentActivity.map((activity, index) => (
-                <div
-                  key={index}
-                  className="flex items-start justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors"
-                >
-                  <div className="space-y-1">
-                    <p className="font-medium text-sm">{activity.type}</p>
-                    <p className="text-sm text-muted-foreground">{activity.patient}</p>
-                    <p className={cn(
-                      "text-xs font-medium",
-                      activity.result.includes("Normal") ? "text-success" : "text-destructive"
-                    )}>
-                      {activity.result}
-                    </p>
+            {recentActivity.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <p className="text-sm">No recent activity yet.</p>
+                <p className="text-xs mt-1">Upload your first scan to get started.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {recentActivity.map((activity, index) => (
+                  <div
+                    key={index}
+                    className="flex items-start justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="space-y-1">
+                      <p className="font-medium text-sm">{activity.type}</p>
+                      <p className="text-sm text-muted-foreground">{activity.patient}</p>
+                      <p className={cn(
+                        "text-xs font-medium",
+                        activity.result.toLowerCase().includes("normal") ? "text-success" : 
+                        activity.result === "processing" ? "text-accent" : "text-destructive"
+                      )}>
+                        {activity.result}
+                      </p>
+                    </div>
+                    <span className="text-xs text-muted-foreground">{activity.date}</span>
                   </div>
-                  <span className="text-xs text-muted-foreground">{activity.date}</span>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -202,10 +252,5 @@ const DashboardHome = () => {
     </div>
   );
 };
-
-// Helper function for className concatenation
-function cn(...classes) {
-  return classes.filter(Boolean).join(' ');
-}
 
 export default DashboardHome;

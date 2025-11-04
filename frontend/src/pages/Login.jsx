@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Card, CardContent } from "../components/ui/card";
@@ -28,8 +28,14 @@ const Login = () => {
   const [authError, setAuthError] = useState("");
   
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const { login, register, isAuthenticated, loading } = useAuth();
+
+  // Get ?mode=login or ?mode=register
+  const params = new URLSearchParams(location.search);
+  const mode = params.get('mode');
+  const defaultTab = mode === 'register' ? 'register' : 'login';
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -175,7 +181,7 @@ const Login = () => {
                 {authError}
               </div>
             )}
-            <Tabs defaultValue="login" className="w-full">
+            <Tabs defaultValue={defaultTab} className="w-full">
               <TabsList className="grid w-full grid-cols-2 mb-6 bg-gray-100">
                 <TabsTrigger value="login" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
                   <User className="h-4 w-4" />

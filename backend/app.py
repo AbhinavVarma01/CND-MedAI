@@ -72,6 +72,7 @@ subtype_to_model = {
 }
 
 def load_final_model(subtype, device):
+    from torchvision import models
     """Load the disease-specific final diagnostic model"""
     model_path = subtype_to_model.get(subtype)
     if not model_path or not os.path.exists(model_path):
@@ -92,43 +93,63 @@ def load_final_model(subtype, device):
                 checkpoint = checkpoint['model']
         
         # Load based on known architecture for each disease
-        # All use 2 classes (binary: Normal vs Disease)
         if subtype == "neuro_alzheimers":
-            # EfficientNet-B3 - try multiple variants and class counts
-            for num_classes in [2, 4, 6]:  # Try different output sizes
-                for variant in ['efficientnet_b3', 'tf_efficientnet_b3', 'tf_efficientnetv2_b3']:
-                    try:
-                        model = timm.create_model(variant, pretrained=False, num_classes=num_classes)
-                        model.load_state_dict(checkpoint, strict=False)
-                        print(f"Successfully loaded Alzheimer model with {variant}, {num_classes} classes")
-                        model.to(device)
-                        model.eval()
-                        return model
-                    except Exception as e:
-                        continue
-            print("Could not load Alzheimer model with any EfficientNet variant")
-            return None
+            # EfficientNet-B3 with 4 classes (matches notebook training)
+            # Classes: Mild Impairment, Moderate Impairment, No Impairment, Very Mild Impairment
+            # Will be mapped to binary: No Impairment -> No Alzheimer, others -> Alzheimer
+            try:
+                model = timm.create_model('efficientnet_b3', pretrained=False, num_classes=4, drop_rate=0.6)
+                model.load_state_dict(checkpoint, strict=False)
+                print(f"Successfully loaded Alzheimer model with EfficientNet-B3, 4 classes")
+                model.to(device)
+                model.eval()
+                return model
+            except Exception as e:
+                print(f"Error loading Alzheimer model: {e}")
+                import traceback
+                traceback.print_exc()
+                return None
             
         elif subtype == "neuro_ms":
-            # ConvNeXt Base
-            model = timm.create_model('convnext_base', pretrained=False, num_classes=2)
-            model.load_state_dict(checkpoint, strict=False)
-            
+            try:
+                # Load ConvNeXt Tiny with 2 output classes (Control=0, MS=1)
+                # Matches training: convnext_tiny, pretrained=True, num_classes=2
+                model = timm.create_model('convnext_tiny', pretrained=False, num_classes=2)
+                # Load trained weights
+                model.load_state_dict(checkpoint, strict=False)
+                model.to(device)
+                model.eval()
+                print(f"Successfully loaded neuro_ms model with ConvNeXt Tiny")
+                return model
+            except Exception as e:
+                print(f"Error loading neuro_ms model: {e}")
+                import traceback
+                traceback.print_exc()
+                return None
+
         elif subtype == "cancer_lung":
-            # EfficientNet - try B0 variants
-            for num_classes in [2, 3]:
-                for variant in ['efficientnet_b0', 'tf_efficientnet_b0']:
-                    try:
-                        model = timm.create_model(variant, pretrained=False, num_classes=num_classes)
-                        model.load_state_dict(checkpoint, strict=False)
-                        print(f"Successfully loaded Lung model with {variant}, {num_classes} classes")
-                        model.to(device)
-                        model.eval()
-                        return model
-                    except:
-                        continue
-            print("Could not load Lung model with any EfficientNet variant")
-            return None
+            try:
+                from torchvision import models
+                # Load EfficientNet-B0 with 3 classes (Benign, Malignant, Normal)
+                # Matches training: models.efficientnet_b0(pretrained=True) + 3 class head
+                model = models.efficientnet_b0(pretrained=False)
+                # Replace classifier for 3 classes
+                num_features = model.classifier[1].in_features
+                model.classifier[1] = nn.Linear(num_features, 3)
+
+                # Load checkpoint weights
+                model.load_state_dict(checkpoint, strict=False)
+
+                model.to(device)
+                model.eval()
+                print(f"Successfully loaded Lung model with torchvision EfficientNet-B0, 3 classes")
+                return model
+            except Exception as e:
+                print(f"Error loading lung cancer model: {e}")
+                import traceback
+                traceback.print_exc()
+                return None
+
             
         elif subtype == "cancer_breast":
             # ResNet18 (confirmed from checkpoint - fc has 512 features)
@@ -137,10 +158,24 @@ def load_final_model(subtype, device):
             model.load_state_dict(checkpoint, strict=False)
             
         elif subtype == "cancer_colon":
-            # ResNet-18
             model = models.resnet18(weights=None)
-            model.fc = nn.Linear(model.fc.in_features, 2)
-            model.load_state_dict(checkpoint, strict=False)
+            num_ftrs = model.fc.in_features
+            model.fc = nn.Sequential(
+                nn.Dropout(0.4),  # dropout to reduce overfitting
+                nn.Linear(num_ftrs, 2)
+            )
+
+            # Load checkpoint weights non-strictly to allow partial loading
+            model_state = model.state_dict()
+            for k in checkpoint:
+                if k in model_state and model_state[k].shape == checkpoint[k].shape:
+                    model_state[k] = checkpoint[k]
+            model.load_state_dict(model_state)
+
+            model = model.to(device)
+            model.eval()
+
+
             
         else:
             print(f"Unknown subtype: {subtype}")
@@ -172,6 +207,27 @@ transform_subtype = transforms.Compose([
     # include normalization if used in training
 ])
 
+# Transform for MS model (matches notebook training: mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+transform_ms = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+])
+
+# Transform for Lung model (same as MS - matches CTlung notebook training)
+transform_lung = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+])
+
+# Transform for Colon model (matches Colon_CT_Resnet18 notebook training)
+transform_colon = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+])
+
 reference_csv_path = "./balanced_test_data.csv"
 # Make CSV validation optional if reference file doesn't exist
 if os.path.exists(reference_csv_path):
@@ -180,6 +236,21 @@ if os.path.exists(reference_csv_path):
 else:
     reference_cols = []
     expected_col_count = 0
+
+def validate_image_file(temp_path):
+    """
+    Validate that the file is actually a valid image, not just by extension.
+    Returns (success: bool, image: PIL.Image or None, error_message: str or None)
+    """
+    try:
+        # Try to open and verify the image
+        image = Image.open(temp_path)
+        image.verify()  # Verify it's a valid image
+        # Reopen after verify (verify() closes the file)
+        image = Image.open(temp_path).convert("RGB")
+        return True, image, None
+    except Exception as e:
+        return False, None, f"Invalid or corrupted image file: {str(e)}"
 
 def is_valid_csv(file):
     if expected_col_count == 0:
@@ -281,18 +352,29 @@ def predict():
     try:
         file.save(temp_path)
         if filename.endswith(('.jpg','.jpeg','.png')):
-            image = Image.open(temp_path).convert("RGB")
+            # Validate it's actually an image file
+            is_valid, image, error_msg = validate_image_file(temp_path)
+            if not is_valid:
+                os.remove(temp_path)
+                return jsonify({"error": error_msg}), 400
+            
             tensor = transform_normal(image).unsqueeze(0).to(device)
             with torch.no_grad():
                 output = model_stage1(tensor)
                 confidence = round(float(output.item()), 3)
                 pred = "Our Modality" if confidence < 0.5 else "Not Our Modality"
             os.remove(temp_path)
-            return jsonify({"prediction": pred, "confidence": confidence})
+            
+            print(f"Modality prediction: {pred}, confidence: {confidence}")
+            
+            # Return error flag if not our modality
+            if pred == "Not Our Modality":
+                return jsonify({"prediction": pred, "isNotOurModality": True}), 200
+            return jsonify({"prediction": pred}), 200
         elif filename.endswith(".csv"):
             if is_valid_csv(temp_path):
                 os.remove(temp_path)
-                return jsonify({"prediction": "Our Modality", "confidence": None})
+                return jsonify({"prediction": "Our Modality"})
             else:
                 os.remove(temp_path)
                 return jsonify({"error": "Invalid CSV"})
@@ -315,15 +397,19 @@ def classify():
     try:
         file.save(temp_path)
         if filename.endswith(('.jpg','.jpeg','.png')):
-            image = Image.open(temp_path).convert("RGB")
+            # Validate it's actually an image file
+            is_valid, image, error_msg = validate_image_file(temp_path)
+            if not is_valid:
+                os.remove(temp_path)
+                return jsonify({"error": error_msg}), 400
+            
             tensor = transform_normal(image).unsqueeze(0).to(device)
             with torch.no_grad():
                 prob = model_stage2(tensor).item()
                 pred_idx = int(prob > 0.5)
-                confidence = prob * 100 if pred_idx == 1 else (100 - prob * 100)
                 label = class_names_stage2[pred_idx]
             os.remove(temp_path)
-            return jsonify({"class_label": label, "confidence": confidence})
+            return jsonify({"classification": label})
         else:
             os.remove(temp_path)
             return jsonify({"error": "Only image files supported for classification"}), 400
@@ -343,16 +429,20 @@ def subtype():
     try:
         file.save(temp_path)
         if filename.endswith(('.jpg','.jpeg','.png')):
-            image = Image.open(temp_path).convert("RGB")
+            # Validate it's actually an image file
+            is_valid, image, error_msg = validate_image_file(temp_path)
+            if not is_valid:
+                os.remove(temp_path)
+                return jsonify({"error": error_msg}), 400
+            
             tensor = transform_subtype(image).unsqueeze(0).to(device)
             with torch.no_grad():
                 output = model_stage3(tensor)
                 probabilities = torch.softmax(output, dim=1)[0]
                 pred_idx = torch.argmax(probabilities).item()
-                confidence = float(probabilities[pred_idx]) * 100
                 label = class_names_stage3[pred_idx]
             os.remove(temp_path)
-            return jsonify({"subtype_prediction": label, "subtype_confidence": confidence})
+            return jsonify({"subtype_prediction": label})
         else:
             os.remove(temp_path)
             return jsonify({"error": "Only image files supported for subtype classification"}), 400
@@ -389,23 +479,62 @@ def diagnose():
                 os.remove(temp_path)
                 return jsonify({"error": f"Model not found for {subtype}"}), 500
             
-            image = Image.open(temp_path).convert("RGB")
-            tensor = transform_normal(image).unsqueeze(0).to(device)
+            # Validate it's actually an image file
+            is_valid, image, error_msg = validate_image_file(temp_path)
+            if not is_valid:
+                os.remove(temp_path)
+                return jsonify({"error": error_msg}), 400
+            
+            # Use appropriate transform based on subtype
+            if subtype == "neuro_ms":
+                # MS model trained with mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]
+                tensor = transform_ms(image).unsqueeze(0).to(device)
+            elif subtype == "cancer_lung":
+                # Lung model trained with mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]
+                tensor = transform_lung(image).unsqueeze(0).to(device)
+            elif subtype == "cancer_colon":
+                # Colon model trained with mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]
+                tensor = transform_colon(image).unsqueeze(0).to(device)
+            else:
+                # Other models (Breast, Alzheimer) use ImageNet normalization
+                tensor = transform_normal(image).unsqueeze(0).to(device)
             
             with torch.no_grad():
                 output = final_model(tensor)
-                # Handle 2-class output with softmax
+                # Handle different output formats based on subtype
                 probabilities = torch.softmax(output, dim=1)[0]
                 pred_class = torch.argmax(probabilities).item()
-                confidence = float(probabilities[pred_class]) * 100
                 
-                # Class 0 = Normal, Class 1 = Disease
-                diagnosis = "Disease Detected" if pred_class == 1 else "Normal"
+                # Define class labels for each subtype matching training
+                if subtype == "cancer_lung":
+                    lung_labels = ["Benign", "Malignant", "Normal"]
+                    diagnosis = lung_labels[pred_class]
+                elif subtype == "cancer_breast":
+                    breast_labels = ["Benign", "Malignant"]
+                    diagnosis = breast_labels[pred_class]
+                elif subtype == "cancer_colon":
+                    colon_labels = ["Non_Cancer", "Cancer"]
+                    diagnosis = colon_labels[pred_class]
+                elif subtype == "neuro_alzheimers":
+                    # 4-class model: map to binary
+                    # Classes: 0=Mild Impairment, 1=Moderate Impairment, 2=No Impairment, 3=Very Mild Impairment
+                    # Binary mapping: class 2 -> No Alzheimer, others -> Alzheimer
+                    binary_map = {0: 1, 1: 1, 2: 0, 3: 1}  # 0=No Alzheimer, 1=Alzheimer
+                    pred_binary = binary_map[pred_class]
+                    binary_labels = ["No Alzheimer", "Alzheimer"]
+                    diagnosis = binary_labels[pred_binary]
+                elif subtype == "neuro_ms":
+                    # Binary: Control vs MS
+                    ms_labels = ["Control", "MS"]
+                    diagnosis = ms_labels[pred_class]
+                else:
+                    # Fallback binary handling
+                    diagnosis = "Disease Detected" if pred_class == 1 else "Normal"
+
             
             os.remove(temp_path)
             return jsonify({
                 "diagnosis": diagnosis,
-                "diagnosis_confidence": confidence,
                 "subtype": subtype
             })
         else:

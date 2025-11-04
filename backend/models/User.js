@@ -8,6 +8,7 @@ const UserSchema = new mongoose.Schema({
   passwordHash: { type: String, required: true },
   hospitalName: { type: String },
   area: { type: String },
+  profilePicture: { type: String }, // base64 encoded image
 }, { timestamps: true, collection: COLLECTION_NAME });
 
 // Prevent model overwrite issues in server restarts

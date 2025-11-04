@@ -18,6 +18,7 @@ import { Toaster } from './components/Toaster';
 import RouteLoadingOverlay from './components/RouteLoadingOverlay';
 import InitialLoadingScreen from './components/InitialLoadingScreen';
 import { useAuth } from './context/AuthContext';
+import ScrollToTop from './components/ScrollToTop';
 
 const AppContent = () => {
   const { loading } = useAuth();
@@ -71,6 +72,7 @@ function App() {
     <Router>
       <AuthProvider>
         <div className="App min-h-screen bg-background">
+          <ScrollToTop />
           <AppContent />
         </div>
       </AuthProvider>

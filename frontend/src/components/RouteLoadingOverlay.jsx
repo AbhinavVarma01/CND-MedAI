@@ -6,13 +6,30 @@ import LogoSpinner from "./LogoSpinner";
 const MIN_DISPLAY_MS = 400;
 const FADE_OUT_MS = 200;
 
-const RouteLoadingOverlay = () => {
+const RouteLoadingOverlay = ({ isActive = false }) => {
   const location = useLocation();
   const isFirstRenderRef = useRef(true);
   const [active, setActive] = useState(false);
   const [shouldRender, setShouldRender] = useState(false);
 
+  // When isActive prop toggles, control overlay accordingly
   useEffect(() => {
+    if (isActive) {
+      setShouldRender(true);
+      setActive(true);
+      return;
+    }
+
+    // if prop turned off, start fade-out
+    if (!isActive && shouldRender) {
+      setActive(false);
+    }
+  }, [isActive]);
+
+  // Maintain existing behavior for route changes when prop isn't used
+  useEffect(() => {
+    if (isActive) return; // prop-driven takes precedence
+
     if (isFirstRenderRef.current) {
       isFirstRenderRef.current = false;
       return;
