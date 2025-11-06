@@ -37,7 +37,7 @@ const Login = () => {
   const params = new URLSearchParams(location.search);
   const mode = params.get('mode');
   const defaultTab = mode === 'register' ? 'register' : 'login';
-
+  const [activeTab, setActiveTab] = useState(defaultTab);
   useEffect(() => {
     if (isAuthenticated) {
       navigate('/dashboard');
@@ -125,18 +125,21 @@ const Login = () => {
     });
 
     if (result.success) {
+      // Move user to login tab and prefill email, leave password empty for manual entry
       setRegisterData({
         fullName: '',
         doctorId: '',
-        email: registerData.email,
+        email: '',
         password: '',
         confirmPassword: '',
         hospitalName: '',
         area: '',
       });
+      setLoginData(prev => ({ ...prev, email: registerData.email, password: '' }));
+      setActiveTab('login');
       toast({
-        title: 'Registration Successful',
-        description: 'Please switch to the Login tab to sign in',
+        title: 'Registration Complete',
+        description: 'Registration successful — your email has been pre-filled on the Login tab. Please enter your password to sign in.',
       });
     }
   };
@@ -184,7 +187,7 @@ const Login = () => {
                 {authError}
               </div>
             )}
-            <Tabs defaultValue={defaultTab} className="w-full">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="grid w-full grid-cols-2 mb-6 bg-gray-100">
                 <TabsTrigger value="login" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
                   <User className="h-4 w-4" />

@@ -27,7 +27,13 @@ const Profile = () => {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await fetch("/api/profile", { credentials: "include" });
+        const apiBase = (process.env.REACT_APP_API_URL && process.env.REACT_APP_API_URL.trim())
+          ? process.env.REACT_APP_API_URL.trim()
+          : (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? 'http://localhost:5000'
+            : '';
+
+        const res = await fetch(`${apiBase}/api/profile`, { credentials: "include" });
         if (res.status === 401) {
           navigate("/login");
           return;
@@ -94,7 +100,13 @@ const Profile = () => {
         const base64String = reader.result;
 
         // Update profile picture on backend
-        const res = await fetch("/api/profile", {
+        const apiBase = (process.env.REACT_APP_API_URL && process.env.REACT_APP_API_URL.trim())
+          ? process.env.REACT_APP_API_URL.trim()
+          : (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? 'http://localhost:5000'
+            : '';
+
+        const res = await fetch(`${apiBase}/api/profile`, {
           method: "PUT",
           credentials: "include",
           headers: { "Content-Type": "application/json" },

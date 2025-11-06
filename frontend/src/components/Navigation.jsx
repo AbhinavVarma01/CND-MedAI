@@ -9,11 +9,17 @@ const Navigation = () => {
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [profile, setProfile] = useState(null);
+  // resolve API base the same way as AuthContext
+  const apiBase = (process.env.REACT_APP_API_URL && process.env.REACT_APP_API_URL.trim())
+    ? process.env.REACT_APP_API_URL.trim()
+    : (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+      ? 'http://localhost:5000'
+      : '';
 
   useEffect(() => {
     // Only fetch if not on login page
     if (location.pathname !== '/login') {
-      fetch('/api/profile', { credentials: 'include' })
+      fetch(`${apiBase}/api/profile`, { credentials: 'include' })
         .then(res => res.ok ? res.json() : null)
         .then(data => setProfile(data))
         .catch(() => setProfile(null));

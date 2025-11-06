@@ -256,7 +256,7 @@ const UploadImage = () => {
               diagnosis: saveBody.results.diagnosis
             });
             
-            const saveRes = await fetch('/api/analysis/upload', {
+            const saveRes = await fetch(`${nodeBase}/api/analysis/upload`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(saveBody),
