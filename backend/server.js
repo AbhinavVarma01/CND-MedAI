@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 
@@ -43,8 +43,8 @@ app.post('/api/auth/register', async (req, res) => {
     const existing = await User.findOne({ email });
     if (existing) return res.status(409).json({ message: 'User already exists' });
 
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(password, salt);
+  // bcryptjs supports passing the rounds directly to hash
+  const passwordHash = await bcrypt.hash(password, 10);
 
     const user = new User({ fullName, doctorId, email, passwordHash, hospitalName, area });
   const saved = await user.save();
