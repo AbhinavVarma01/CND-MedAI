@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-
 const COLLECTION_NAME = process.env.COLLECTION_NAME || 'users';
 
 const UserSchema = new mongoose.Schema({
@@ -11,6 +10,7 @@ const UserSchema = new mongoose.Schema({
   area: { type: String },
   profilePicture: { type: String }, // base64 encoded image
 }, { timestamps: true, collection: COLLECTION_NAME });
+
 const bcrypt = require('bcryptjs');
 
 // Hash a password before saving it to the database
